@@ -1,12 +1,14 @@
-**Translation Service**
+# Translation Service
 Overview
 Translation Service is a Spring Boot application designed to manage and serve translations across multiple locales and platforms.
-Prerequisites
 
-**Docker**
+**Prerequisites**
+
+Docker
 Docker Compose
 
 **Quick Start**
+
 1. Launch the Application
    bashCopydocker-compose up -d
    This command will:
@@ -26,19 +28,21 @@ Password: password
 
 
 **Database Population**
+
 Automatic Data Generation
 The application can automatically populate the database with a large number of test records:
 
 Open application.properties or set environment variables:
 
-propertiesCopy# Enable data population
+**Enable data population**
+
 app.data.populate=true
 
-# Number of records to generate
+**Number of records to generate**
+
 app.data.count=100000
 
 **Features of Data Population:**
-
 
 Generates translations across multiple locales
 Creates random tags and keys
