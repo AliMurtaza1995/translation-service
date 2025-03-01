@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <changeSet id="cleanup" author="admin">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="translation_tags"/>
+        </preConditions>
+        <dropTable tableName="translation_tags"/>
+    </changeSet>
+
+    <changeSet id="cleanup-translations" author="admin">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="translations"/>
+        </preConditions>
+        <dropTable tableName="translations"/>
+    </changeSet>
+
+    <changeSet id="cleanup-tags" author="admin">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="tags"/>
+        </preConditions>
+        <dropTable tableName="tags"/>
+    </changeSet>
+
+    <changeSet id="cleanup-locales" author="admin">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="locales"/>
+        </preConditions>
+        <dropTable tableName="locales"/>
+    </changeSet>
+
+    <changeSet id="cleanup-liquibase-lock" author="admin">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="DATABASECHANGELOGLOCK"/>
+        </preConditions>
+        <dropTable tableName="DATABASECHANGELOGLOCK"/>
+    </changeSet>
+</databaseChangeLog>
