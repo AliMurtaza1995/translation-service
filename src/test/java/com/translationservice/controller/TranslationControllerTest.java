@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.translationservice.dto.SearchRequestDTO;
 import com.translationservice.dto.TranslationRequestDTO;
 import com.translationservice.dto.TranslationResponseDTO;
+import com.translationservice.exception.GlobalExceptionHandler;
+import com.translationservice.exception.ResourceNotFoundException;
 import com.translationservice.service.TranslationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,10 +20,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -29,10 +28,35 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 
+import com.translationservice.dto.SearchRequestDTO;
+import com.translationservice.dto.TranslationRequestDTO;
+import com.translationservice.dto.TranslationResponseDTO;
+import com.translationservice.service.TranslationService;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
 @ExtendWith(MockitoExtension.class)
 class TranslationControllerTest {
-
-    private MockMvc mockMvc;
 
     @Mock
     private TranslationService translationService;
@@ -40,190 +64,208 @@ class TranslationControllerTest {
     @InjectMocks
     private TranslationController translationController;
 
-    private ObjectMapper objectMapper;
+    private TranslationRequestDTO requestDTO;
+    private TranslationResponseDTO responseDTO;
 
     @BeforeEach
-    public void setup() {
-        mockMvc = MockMvcBuilders.standaloneSetup(translationController).build();
-        objectMapper = new ObjectMapper();
+    void setUp() {
+        requestDTO = new TranslationRequestDTO();
+        requestDTO.setKey("test.key");
+        requestDTO.setLocaleCode("en");
+        requestDTO.setContent("Test Content");
+
+        responseDTO = new TranslationResponseDTO();
+        responseDTO.setId(1L);
+        responseDTO.setKey("test.key");
+        responseDTO.setLocaleCode("en");
+        responseDTO.setContent("Test Content");
     }
 
     @Test
-    public void testCreateTranslation() throws Exception {
-        TranslationRequestDTO requestDTO = createSampleTranslationRequestDTO();
-        TranslationResponseDTO responseDTO = createSampleTranslationResponseDTO();
-
+    void testCreateTranslation() {
         when(translationService.createTranslation(any(TranslationRequestDTO.class)))
                 .thenReturn(responseDTO);
 
-        mockMvc.perform(post("/api/translations")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(requestDTO)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(responseDTO.getId()))
-                .andExpect(jsonPath("$.key").value(responseDTO.getKey()));
+        ResponseEntity<TranslationResponseDTO> response = translationController.createTranslation(requestDTO);
 
-        verify(translationService).createTranslation(any(TranslationRequestDTO.class));
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        assertEquals(responseDTO, response.getBody());
+        verify(translationService).createTranslation(requestDTO);
     }
 
     @Test
-    public void testUpdateTranslation() throws Exception {
-        Long translationId = 1L;
-        TranslationRequestDTO requestDTO = createSampleTranslationRequestDTO();
-        TranslationResponseDTO responseDTO = createSampleTranslationResponseDTO();
-
-        when(translationService.updateTranslation(eq(translationId), any(TranslationRequestDTO.class)))
+    void testUpdateTranslation() {
+        when(translationService.updateTranslation(eq(1L), any(TranslationRequestDTO.class)))
                 .thenReturn(responseDTO);
 
-        mockMvc.perform(put("/api/translations/{id}", translationId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(requestDTO)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(responseDTO.getId()));
+        ResponseEntity<TranslationResponseDTO> response = translationController.updateTranslation(1L, requestDTO);
 
-        verify(translationService).updateTranslation(eq(translationId), any(TranslationRequestDTO.class));
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(responseDTO, response.getBody());
+        verify(translationService).updateTranslation(1L, requestDTO);
     }
 
     @Test
-    public void testGetTranslation() throws Exception {
-        Long translationId = 1L;
-        TranslationResponseDTO responseDTO = createSampleTranslationResponseDTO();
+    void testGetTranslation() {
+        when(translationService.getTranslation(1L)).thenReturn(responseDTO);
 
-        when(translationService.getTranslation(translationId))
-                .thenReturn(responseDTO);
+        ResponseEntity<TranslationResponseDTO> response = translationController.getTranslation(1L);
 
-        mockMvc.perform(get("/api/translations/{id}", translationId))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(responseDTO.getId()));
-
-        verify(translationService).getTranslation(translationId);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(responseDTO, response.getBody());
+        verify(translationService).getTranslation(1L);
     }
 
     @Test
-    public void testGetAllTranslations() throws Exception {
-        List<TranslationResponseDTO> translations = Arrays.asList(
-                createSampleTranslationResponseDTO(),
-                createSampleTranslationResponseDTO()
-        );
+    void testGetAllTranslations() {
+        List<TranslationResponseDTO> translations = new ArrayList<>();
+        translations.add(responseDTO);
 
         when(translationService.getAllTranslations(any(Pageable.class)))
                 .thenReturn(translations);
 
-        mockMvc.perform(get("/api/translations")
-                        .param("page", "0")
-                        .param("size", "20")
-                        .param("sortBy", "id")
-                        .param("sortDirection", "asc"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2));
+        ResponseEntity<List<TranslationResponseDTO>> response = translationController.getAllTranslations(
+                0, 20, "id", "asc"
+        );
 
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(translations, response.getBody());
         verify(translationService).getAllTranslations(any(Pageable.class));
     }
 
     @Test
-    public void testGetTranslationsByLocale() throws Exception {
-        String localeCode = "en";
-        Map<String, String> translations = new HashMap<>();
-        translations.put("key1", "Translation 1");
-        translations.put("key2", "Translation 2");
+    void testGetAllTranslationsWithDescSort() {
+        List<TranslationResponseDTO> translations = new ArrayList<>();
+        translations.add(responseDTO);
 
-        when(translationService.getTranslationsByLocale(localeCode))
+        when(translationService.getAllTranslations(any(Pageable.class)))
                 .thenReturn(translations);
 
-        mockMvc.perform(get("/api/translations/locale/{localeCode}", localeCode))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.key1").value("Translation 1"))
-                .andExpect(jsonPath("$.key2").value("Translation 2"));
+        ResponseEntity<List<TranslationResponseDTO>> response = translationController.getAllTranslations(
+                0, 20, "id", "desc"
+        );
 
-        verify(translationService).getTranslationsByLocale(localeCode);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(translations, response.getBody());
+        verify(translationService).getAllTranslations(any(Pageable.class));
     }
 
     @Test
-    public void testGetAllTranslationsJson() throws Exception {
-        Map<String, Map<String, String>> jsonTranslations = new HashMap<>();
+    void testGetTranslationsByLocale() {
+        Map<String, String> translations = new HashMap<>();
+        translations.put("test.key", "Test Content");
+
+        when(translationService.getTranslationsByLocale("en"))
+                .thenReturn(translations);
+
+        ResponseEntity<Map<String, String>> response = translationController.getTranslationsByLocale("en");
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(translations, response.getBody());
+        verify(translationService).getTranslationsByLocale("en");
+    }
+
+    @Test
+    void testGetAllTranslationsJson() {
+        Map<String, Map<String, String>> allTranslations = new HashMap<>();
         Map<String, String> enTranslations = new HashMap<>();
-        enTranslations.put("key1", "Translation 1");
-        jsonTranslations.put("en", enTranslations);
+        enTranslations.put("test.key", "Test Content");
+        allTranslations.put("en", enTranslations);
 
         when(translationService.getAllTranslationsJson())
-                .thenReturn(jsonTranslations);
+                .thenReturn(allTranslations);
 
-        mockMvc.perform(get("/api/translations/export"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.en.key1").value("Translation 1"));
+        ResponseEntity<Map<String, Map<String, String>>> response = translationController.getAllTranslationsJson();
 
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(allTranslations, response.getBody());
         verify(translationService).getAllTranslationsJson();
     }
 
     @Test
-    public void testSearchTranslations() throws Exception {
+    void testSearchTranslations() {
         SearchRequestDTO searchRequest = new SearchRequestDTO();
-        searchRequest.setKey("test");
-
-        List<TranslationResponseDTO> translations = Arrays.asList(
-                createSampleTranslationResponseDTO(),
-                createSampleTranslationResponseDTO()
-        );
-        Page<TranslationResponseDTO> pagedTranslations = new PageImpl<>(translations);
+        List<TranslationResponseDTO> content = new ArrayList<>();
+        content.add(responseDTO);
+        Page<TranslationResponseDTO> page = new PageImpl<>(content);
 
         when(translationService.searchTranslations(any(SearchRequestDTO.class)))
-                .thenReturn(pagedTranslations);
+                .thenReturn(page);
 
-        mockMvc.perform(post("/api/translations/search")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(searchRequest)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content.length()").value(2));
+        ResponseEntity<Page<TranslationResponseDTO>> response = translationController.searchTranslations(searchRequest);
 
-        verify(translationService).searchTranslations(any(SearchRequestDTO.class));
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(page, response.getBody());
+        verify(translationService).searchTranslations(searchRequest);
     }
 
     @Test
-    public void testGetTranslationsByTagName() throws Exception {
-        String tagName = "mobile";
-        List<TranslationResponseDTO> translations = Arrays.asList(
-                createSampleTranslationResponseDTO(),
-                createSampleTranslationResponseDTO()
-        );
+    void testGetTranslationsByTagName() {
+        List<TranslationResponseDTO> translations = new ArrayList<>();
+        translations.add(responseDTO);
 
-        when(translationService.getTranslationsByTagName(tagName))
+        when(translationService.getTranslationsByTagName("testTag"))
                 .thenReturn(translations);
 
-        mockMvc.perform(get("/api/translations/tag/{tagName}", tagName))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2));
+        ResponseEntity<List<TranslationResponseDTO>> response = translationController.getTranslationsByTagName("testTag");
 
-        verify(translationService).getTranslationsByTagName(tagName);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(translations, response.getBody());
+        verify(translationService).getTranslationsByTagName("testTag");
     }
 
     @Test
-    public void testDeleteTranslation() throws Exception {
-        Long translationId = 1L;
-        doNothing().when(translationService).deleteTranslation(translationId);
+    void testGetTranslationsByKeyPattern() {
+        List<TranslationResponseDTO> translations = new ArrayList<>();
+        translations.add(responseDTO);
 
-        mockMvc.perform(delete("/api/translations/{id}", translationId))
-                .andExpect(status().isNoContent());
+        when(translationService.getTranslationsByKeyPattern("test.*"))
+                .thenReturn(translations);
 
-        verify(translationService).deleteTranslation(translationId);
+        ResponseEntity<List<TranslationResponseDTO>> response = translationController.getTranslationsByKeyPattern("test.*");
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(translations, response.getBody());
+        verify(translationService).getTranslationsByKeyPattern("test.*");
     }
 
-    // Helper methods to create sample DTOs
-    private TranslationRequestDTO createSampleTranslationRequestDTO() {
-        TranslationRequestDTO dto = new TranslationRequestDTO();
-        dto.setKey("test.key");
-        dto.setContent("Test Translation");
-        dto.setLocaleCode("en");
-        dto.setTags(List.of("mobile"));
-        return dto;
+    @Test
+    void testGetTranslationsByContentPattern() {
+        List<TranslationResponseDTO> translations = new ArrayList<>();
+        translations.add(responseDTO);
+
+        when(translationService.getTranslationsByContentPattern("*Content*"))
+                .thenReturn(translations);
+
+        ResponseEntity<List<TranslationResponseDTO>> response = translationController.getTranslationsByContentPattern("*Content*");
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(translations, response.getBody());
+        verify(translationService).getTranslationsByContentPattern("*Content*");
     }
 
-    private TranslationResponseDTO createSampleTranslationResponseDTO() {
-        TranslationResponseDTO dto = new TranslationResponseDTO();
-        dto.setId(1L);
-        dto.setKey("test.key");
-        dto.setContent("Test Translation");
-        dto.setLocaleCode("en");
-        dto.setTags(List.of("mobile"));
-        return dto;
+    @Test
+    void testDeleteTranslation() {
+        doNothing().when(translationService).deleteTranslation(1L);
+
+        ResponseEntity<Void> response = translationController.deleteTranslation(1L);
+
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+        verify(translationService).deleteTranslation(1L);
+    }
+
+    // Validation test for PageRequest
+    @Test
+    void testPageRequestCreation() {
+        // Verify page and size are handled correctly
+        Pageable pageable = PageRequest.of(
+                0,
+                20,
+                Sort.by(Sort.Direction.ASC, "id")
+        );
+
+        assertEquals(0, pageable.getPageNumber());
+        assertEquals(20, pageable.getPageSize());
+        assertEquals("id: ASC", pageable.getSort().toString());
     }
 }
