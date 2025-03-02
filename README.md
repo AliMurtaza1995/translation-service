@@ -1,135 +1,122 @@
 # Translation Service
-Overview
+
+## Overview
 Translation Service is a Spring Boot application designed to manage and serve translations across multiple locales and platforms.
 
-**Prerequisites**
+## Prerequisites
+- Docker
+- Docker Compose
 
-Docker
-Docker Compose
-
-**Quick Start**
-
+## Quick Start
 1. Launch the Application
-   bashCopydocker-compose up -d
-   This command will:
+   ```bash
+   docker-compose up -d
+This command will:
 
-Build the Docker image
-Start the PostgreSQL database
-Launch the Translation Service application
+* Build the Docker image
+* Start the MySQL database
+* Launch the Translation Service application
+
 
 2. Accessing the Application
 
 Swagger UI: http://localhost:8083/swagger-ui/index.html
-Credentials:
 
-Username: user
-Password: password
+### Credentials:
 
+* Username: user
+* Password: password
 
+## Database Population
+The application can automatically populate the database with a large number of test records.
+Configuration options:
 
-**Database Population**
-
-Automatic Data Generation
-The application can automatically populate the database with a large number of test records:
-
-Open application.properties or set environment variables:
-
-**Enable data population**
-
+```
+# Enable data population
 app.data.populate=true
-
-**Number of records to generate**
-
+# Number of records to generate
 app.data.count=100000
+```
 
-**Features of Data Population:**
+### Features of Data Population
 
-Generates translations across multiple locales
-Creates random tags and keys
-Supports scaling up to 100,000+ records
-Configurable record count
+* Generates translations across multiple locales
+* Creates random tags and keys
+* Supports scaling up to 100,000+ records
+* Configurable record count
 
-**Supported Locales**
+### Supported Locales
 
-English (en)
-French (fr)
-Spanish (es)
-German (de)
-Italian (it)
+* English (en)
+* French (fr)
+* Spanish (es)
+* German (de)
+* Italian (it)
 
-**Generated Tags**
+### Generated Tags
 
-mobile
-web
-desktop
-admin
-user
-public
-private
-login
-signup
-dashboard
-settings
-error
+`mobile`, `web`, `desktop`, `admin`, `user`, `public`, `private`, `login`, `signup`, `dashboard`, `settings`, `error`
 
-**API Documentation**
+## API Documentation
+
 Swagger UI provides interactive API documentation:
 
-URL: http://localhost:8083/swagger-ui/index.html
-Authentication: Token-based (Basic Auth with provided credentials)
+* URL: http://localhost:8083/swagger-ui/index.html
+* Authentication: Token-based (Basic Auth with provided credentials)
 
-**Key Endpoints**
+### Key Endpoints
 
-Create Translation: POST /api/translations
-Update Translation: PUT /api/translations/{id}
-Get All Translations: GET /api/translations
-Search Translations: POST /api/translations/search
-Export Translations: GET /api/translations/export
+* Create Translation: POST `/api/translations`
+* Update Translation: PUT `/api/translations/{id}`
+* Get All Translations: GET `/api/translations`
+* Search Translations: POST `/api/translations/search`
+* Export Translations: GET `/api/translations/export`
 
-**Performance Considerations**
+## Performance Considerations
 
-Efficient database population mechanism
-Multi-threaded batch processing
-Configurable record generation
-Unique key generation
+* Efficient database population mechanism
+* Multi-threaded batch processing
+* Configurable record generation
+* Unique key generation
 
-**Configuration**
-Environment Variables
-You can configure the application using environment variables:
+## Troubleshooting
+### Database Connection Issues
 
-APP_DATA_POPULATE: Enable/disable data population (true/false)
-APP_DATA_COUNT: Number of records to generate
-SPRING_DATASOURCE_URL: Database connection URL
-SPRING_DATASOURCE_USERNAME: Database username
-SPRING_DATASOURCE_PASSWORD: Database password
+* Ensure MySQL is running
+* Check database credentials
+* Verify network connectivity
 
-**Troubleshooting**
+### Data Population Problems
 
-Database Connection Issues
+* Verify app.data.populate is set to true
+* Check available system resources
+* Monitor application logs
 
-Ensure MySQL is running
-Check database credentials
-Verify network connectivity
+## Development
+### Local Development Setup
+Requires:
 
+* Java 17+
+* Maven
+* MySQL
 
-**Data Population Problems**
+### Local Run
+```bash
+./mvnw spring-boot:run
+```
+### Test Coverage
+The project maintains high test coverage to ensure reliability and stability of the codebase.
+Running Tests with Coverage
+```bash
+./mvnw clean verify
+```
+### Coverage Report
+After running tests, the JaCoCo coverage report can be found at:
+```
+target/site/jacoco/index.html
+```
+### Coverage Requirements
+The project enforces the following coverage requirements:
 
-Verify app.data.populate is set to true
-Check available system resources
-Monitor application logs
-
-
-
-**Development**
-Local Development Setup
-
-**Requires:**
-
-Java 17+
-Maven
-MySQL
-
-
-**Local Run**
-
-bashCopy./mvnw spring-boot:run
+Line coverage: 100%
+Branch coverage: 100%
