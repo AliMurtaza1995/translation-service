@@ -3,14 +3,13 @@ package com.translationservice.service;
 import com.translationservice.dto.SearchRequestDTO;
 import com.translationservice.dto.TranslationRequestDTO;
 import com.translationservice.dto.TranslationResponseDTO;
+import com.translationservice.exception.ResourceNotFoundException;
 import com.translationservice.model.Locale;
 import com.translationservice.model.Tag;
 import com.translationservice.model.Translation;
-import com.translationservice.exception.ResourceNotFoundException;
 import com.translationservice.repository.LocaleRepository;
 import com.translationservice.repository.TagRepository;
 import com.translationservice.repository.TranslationRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
@@ -54,7 +53,7 @@ public class TranslationService {
                 .tags(new HashSet<>())
                 .build();
 
-        // Add tags if provided
+
         if (requestDTO.getTags() != null && !requestDTO.getTags().isEmpty()) {
             Set<Tag> tags = getOrCreateTags(requestDTO.getTags());
             tags.forEach(translation::addTag);

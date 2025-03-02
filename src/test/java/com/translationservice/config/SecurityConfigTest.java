@@ -1,106 +1,249 @@
 package com.translationservice.config;
 
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
+import org.mockito.InjectMocks;
+import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.filter.OncePerRequestFilter;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.verify;
+import java.lang.reflect.Method;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(MockitoExtension.class)
-class SecurityConfigTest {
+public class SecurityConfigTest {
 
+    @InjectMocks
     private SecurityConfig securityConfig;
 
-    @Mock
-    private HttpSecurity httpSecurity;
+    private final String TEST_TOKEN = "test-token";
 
     @BeforeEach
     void setUp() {
-        securityConfig = new SecurityConfig();
-        ReflectionTestUtils.setField(securityConfig, "securityToken", "translation-service-token");
-    }
-
-    /*@Test
-    void testSecurityFilterChain() throws Exception {
+        MockitoAnnotations.openMocks(this);
+        ReflectionTestUtils.setField(securityConfig, "securityToken", TEST_TOKEN);
         SecurityContextHolder.clearContext();
-        SecurityFilterChain filterChain = securityConfig.securityFilterChain(httpSecurity);
-
-        verify(httpSecurity).csrf(any());
-        verify(httpSecurity).authorizeHttpRequests(any());
-        verify(httpSecurity).httpBasic(any());
-        verify(httpSecurity).addFilterBefore(any(), eq(UsernamePasswordAuthenticationFilter.class));
-        verify(httpSecurity).sessionManagement(any());
-
-        assertNotNull(filterChain);
-    }*/
-
-    @Test
-    void testTokenAuthenticationFilter_ValidToken() throws Exception {
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader("Authorization", "Bearer translation-service-token");
-        MockHttpServletResponse response = new MockHttpServletResponse();
-
-        var filter = securityConfig.tokenAuthenticationFilter();
-        filter.doFilter(request, response, (req, res) -> {});
-
-        assertNotNull(SecurityContextHolder.getContext().getAuthentication());
     }
 
-    @Test
-    void testTokenAuthenticationFilter_InvalidToken() throws Exception {
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader("Authorization", "Bearer invalid-token");
-        MockHttpServletResponse response = new MockHttpServletResponse();
-
-        var filter = securityConfig.tokenAuthenticationFilter();
-        filter.doFilter(request, response, (req, res) -> {});
-
-        assertEquals(HttpServletResponse.SC_UNAUTHORIZED, response.getStatus());
-    }
-
-    @Test
-    void testTokenAuthenticationFilter_SwaggerPaths() throws Exception {
-        String[] swaggerPaths = {"/swagger-ui/index.html", "/v3/api-docs/swagger-config"};
-
-        for (String path : swaggerPaths) {
-            MockHttpServletRequest request = new MockHttpServletRequest();
-            request.setRequestURI(path);
-            MockHttpServletResponse response = new MockHttpServletResponse();
-
-            var filter = securityConfig.tokenAuthenticationFilter();
-            filter.doFilter(request, response, (req, res) -> {});
-        }
-    }
-
-    @Test
-    void testTokenAuthenticationFilter_NoAuthHeader() throws Exception {
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        MockHttpServletResponse response = new MockHttpServletResponse();
-
-        var filter = securityConfig.tokenAuthenticationFilter();
-        filter.doFilter(request, response, (req, res) -> {});
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
     }
 
     @Test
     void testUserDetailsService() {
-        var userDetailsService = securityConfig.userDetailsService();
-        var userDetails = userDetailsService.loadUserByUsername("user");
+        // Act
+        UserDetailsService userDetailsService = securityConfig.userDetailsService();
+        UserDetails userDetails = userDetailsService.loadUserByUsername("user");
 
+        // Assert
+        assertNotNull(userDetailsService);
         assertNotNull(userDetails);
         assertEquals("user", userDetails.getUsername());
+        assertTrue(userDetails.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_USER")));
+    }
+
+    // Testing the token filter with Swagger UI path
+    @Test
+    void testTokenFilter_SwaggerUiPath() throws Exception {
+        // Use a fresh instance of SecurityConfig to avoid interference
+        SecurityConfig configForTest = new SecurityConfig();
+        ReflectionTestUtils.setField(configForTest, "securityToken", TEST_TOKEN);
+
+        // Create a fresh request and response
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/swagger-ui/index.html");
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain filterChain = new MockFilterChain();
+
+        // Get a filter from our fresh config instance
+        OncePerRequestFilter filter = configForTest.tokenAuthenticationFilter();
+
+        // Clear security context to ensure test isolation
+        SecurityContextHolder.clearContext();
+
+        // Act
+        invokeDoFilterInternal(filter, request, response, filterChain);
+
+        // Assert
+        assertNull(SecurityContextHolder.getContext().getAuthentication(),
+                "Authentication should be null for Swagger UI path");
+    }
+
+    @Test
+    void testTokenFilter_ApiDocsPath() throws Exception {
+        // Use a fresh instance of SecurityConfig to avoid interference
+        SecurityConfig configForTest = new SecurityConfig();
+        ReflectionTestUtils.setField(configForTest, "securityToken", TEST_TOKEN);
+
+        // Create a fresh request and response
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/v3/api-docs/swagger-config");
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain filterChain = new MockFilterChain();
+
+        // Get a filter from our fresh config instance
+        OncePerRequestFilter filter = configForTest.tokenAuthenticationFilter();
+
+        // Clear security context to ensure test isolation
+        SecurityContextHolder.clearContext();
+
+        // Act
+        invokeDoFilterInternal(filter, request, response, filterChain);
+
+        // Assert
+        assertNull(SecurityContextHolder.getContext().getAuthentication(),
+                "Authentication should be null for API docs path");
+    }
+
+    @Test
+    void testTokenFilter_NoAuthHeader() throws Exception {
+        // Use a fresh instance of SecurityConfig to avoid interference
+        SecurityConfig configForTest = new SecurityConfig();
+        ReflectionTestUtils.setField(configForTest, "securityToken", TEST_TOKEN);
+
+        // Create a fresh request and response
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/api/translations");
+        // No Authorization header
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain filterChain = new MockFilterChain();
+
+        // Get a filter from our fresh config instance
+        OncePerRequestFilter filter = configForTest.tokenAuthenticationFilter();
+
+        // Clear security context to ensure test isolation
+        SecurityContextHolder.clearContext();
+
+        // Act
+        invokeDoFilterInternal(filter, request, response, filterChain);
+
+        // Assert
+        assertNull(SecurityContextHolder.getContext().getAuthentication(),
+                "Authentication should be null when no auth header is present");
+    }
+
+    @Test
+    void testTokenFilter_NonBearerToken() throws Exception {
+        // Use a fresh instance of SecurityConfig to avoid interference
+        SecurityConfig configForTest = new SecurityConfig();
+        ReflectionTestUtils.setField(configForTest, "securityToken", TEST_TOKEN);
+
+        // Create a fresh request and response
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/api/translations");
+        request.addHeader("Authorization", "Basic dXNlcjpwYXNzd29yZA==");
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain filterChain = new MockFilterChain();
+
+        // Get a filter from our fresh config instance
+        OncePerRequestFilter filter = configForTest.tokenAuthenticationFilter();
+
+        // Clear security context to ensure test isolation
+        SecurityContextHolder.clearContext();
+
+        // Act
+        invokeDoFilterInternal(filter, request, response, filterChain);
+
+        // Assert
+        assertNull(SecurityContextHolder.getContext().getAuthentication(),
+                "Authentication should be null for non-Bearer token");
+    }
+
+    @Test
+    void testTokenFilter_ValidToken() throws Exception {
+        // Use a fresh instance of SecurityConfig to avoid interference
+        SecurityConfig configForTest = new SecurityConfig();
+        ReflectionTestUtils.setField(configForTest, "securityToken", TEST_TOKEN);
+
+        // Create a fresh request and response
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/api/translations");
+        request.addHeader("Authorization", "Bearer " + TEST_TOKEN);
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain filterChain = new MockFilterChain();
+
+        // Get a filter from our fresh config instance
+        OncePerRequestFilter filter = configForTest.tokenAuthenticationFilter();
+
+        // Clear security context to ensure test isolation
+        SecurityContextHolder.clearContext();
+
+        // Act
+        invokeDoFilterInternal(filter, request, response, filterChain);
+
+        // Assert
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        assertNotNull(auth, "Authentication should be set for valid token");
+        assertEquals("translation-api-user", auth.getPrincipal());
+        assertTrue(auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_API_USER")));
+    }
+
+    @Test
+    void testTokenFilter_InvalidToken() throws Exception {
+        // Use a fresh instance of SecurityConfig to avoid interference
+        SecurityConfig configForTest = new SecurityConfig();
+        ReflectionTestUtils.setField(configForTest, "securityToken", TEST_TOKEN);
+
+        // Create a fresh request and response
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/api/translations");
+        request.addHeader("Authorization", "Bearer invalid-token");
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain filterChain = new MockFilterChain();
+
+        // Get a filter from our fresh config instance
+        OncePerRequestFilter filter = configForTest.tokenAuthenticationFilter();
+
+        // Clear security context to ensure test isolation
+        SecurityContextHolder.clearContext();
+
+        // Act
+        invokeDoFilterInternal(filter, request, response, filterChain);
+
+        // Assert
+        assertEquals(HttpServletResponse.SC_UNAUTHORIZED, response.getStatus(),
+                "Response status should be 401 Unauthorized for invalid token");
+        assertNull(SecurityContextHolder.getContext().getAuthentication(),
+                "Authentication should be null for invalid token");
+    }
+
+
+    // Helper method to invoke protected doFilterInternal method via reflection
+    private void invokeDoFilterInternal(OncePerRequestFilter filter, HttpServletRequest request,
+                                        HttpServletResponse response, FilterChain filterChain)
+            throws Exception {
+
+        Method method = OncePerRequestFilter.class.getDeclaredMethod(
+                "doFilterInternal",
+                HttpServletRequest.class,
+                HttpServletResponse.class,
+                FilterChain.class);
+
+        method.setAccessible(true);
+        method.invoke(filter, request, response, filterChain);
     }
 }

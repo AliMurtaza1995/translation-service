@@ -1,6 +1,8 @@
 package com.translationservice.model;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -10,82 +12,152 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class TagTest {
 
+    private static final LocalDateTime FIXED_DATE_TIME = LocalDateTime.of(2023, 1, 1, 12, 0, 0);
+
     @Test
-    public void testTagConstructors() {
-        // Default constructor
-        Tag defaultTag = new Tag();
-        assertNotNull(defaultTag);
+    void testEmptyConstructor() {
+        // Act
+        Tag tag = new Tag();
 
-        // Parameterized constructor
-        Set<Translation> translations = new HashSet<>();
-        LocalDateTime now = LocalDateTime.now();
-        Tag tag = new Tag(
-                1L,
-                "mobile",
-                now,
-                now,
-                translations
-        );
-
-        assertEquals(1L, tag.getId());
-        assertEquals("mobile", tag.getName());
-        assertEquals(now, tag.getCreatedAt());
-        assertEquals(now, tag.getUpdatedAt());
-        assertEquals(translations, tag.getTranslations());
+        // Assert
+        assertNull(tag.getId());
+        assertNull(tag.getName());
+        assertNull(tag.getCreatedAt());
+        assertNull(tag.getUpdatedAt());
+        assertNotNull(tag.getTranslations());
+        assertTrue(tag.getTranslations().isEmpty());
     }
 
     @Test
-    public void testTagBuilder() {
+    void testParameterizedConstructor() {
+        // Arrange
+        Long id = 1L;
+        String name = "test-tag";
+        LocalDateTime createdAt = LocalDateTime.now();
+        LocalDateTime updatedAt = LocalDateTime.now();
         Set<Translation> translations = new HashSet<>();
-        LocalDateTime now = LocalDateTime.now();
+        Translation translation = new Translation();
+        translation.setId(1L);
+        translations.add(translation);
 
+        // Act
+        Tag tag = new Tag(id, name, createdAt, updatedAt, translations);
+
+        // Assert
+        assertEquals(id, tag.getId());
+        assertEquals(name, tag.getName());
+        assertEquals(createdAt, tag.getCreatedAt());
+        assertEquals(updatedAt, tag.getUpdatedAt());
+        assertEquals(translations, tag.getTranslations());
+        assertEquals(1, tag.getTranslations().size());
+    }
+
+    @Test
+    void testGettersAndSetters() {
+        // Arrange
+        Tag tag = new Tag();
+        Long id = 1L;
+        String name = "test-tag";
+        LocalDateTime createdAt = LocalDateTime.now();
+        LocalDateTime updatedAt = LocalDateTime.now();
+        Set<Translation> translations = new HashSet<>();
+        Translation translation = new Translation();
+        translation.setId(1L);
+        translations.add(translation);
+
+        // Act
+        tag.setId(id);
+        tag.setName(name);
+        tag.setCreatedAt(createdAt);
+        tag.setUpdatedAt(updatedAt);
+        tag.setTranslations(translations);
+
+        // Assert
+        assertEquals(id, tag.getId());
+        assertEquals(name, tag.getName());
+        assertEquals(createdAt, tag.getCreatedAt());
+        assertEquals(updatedAt, tag.getUpdatedAt());
+        assertEquals(translations, tag.getTranslations());
+        assertEquals(1, tag.getTranslations().size());
+    }
+
+    @Test
+    void testBuilder() {
+        // Arrange
+        Long id = 1L;
+        String name = "test-tag";
+        LocalDateTime createdAt = LocalDateTime.now();
+        LocalDateTime updatedAt = LocalDateTime.now();
+        Set<Translation> translations = new HashSet<>();
+        Translation translation = new Translation();
+        translation.setId(1L);
+        translations.add(translation);
+
+        // Act
         Tag tag = Tag.builder()
-                .id(1L)
-                .name("web")
-                .createdAt(now)
-                .updatedAt(now)
+                .id(id)
+                .name(name)
+                .createdAt(createdAt)
+                .updatedAt(updatedAt)
                 .translations(translations)
                 .build();
 
-        assertEquals(1L, tag.getId());
-        assertEquals("web", tag.getName());
-        assertEquals(now, tag.getCreatedAt());
-        assertEquals(now, tag.getUpdatedAt());
+        // Assert
+        assertEquals(id, tag.getId());
+        assertEquals(name, tag.getName());
+        assertEquals(createdAt, tag.getCreatedAt());
+        assertEquals(updatedAt, tag.getUpdatedAt());
         assertEquals(translations, tag.getTranslations());
+        assertEquals(1, tag.getTranslations().size());
     }
 
     @Test
-    public void testPrePersistAndPreUpdate() {
-        Tag tag = new Tag();
+    void testBuilderNoValues() {
+        // Act
+        Tag tag = Tag.builder().build();
 
-        // Simulate pre-persist
-        tag.onCreate();
-        assertNotNull(tag.getCreatedAt());
-        assertNotNull(tag.getUpdatedAt());
-
-        // Simulate pre-update
-        LocalDateTime initialCreatedAt = tag.getCreatedAt();
-        tag.onUpdate();
-        assertEquals(initialCreatedAt, tag.getCreatedAt());
-        assertNotNull(tag.getUpdatedAt());
+        // Assert
+        assertNull(tag.getId());
+        assertNull(tag.getName());
+        assertNull(tag.getCreatedAt());
+        assertNull(tag.getUpdatedAt());
+        assertNotNull(tag.getTranslations());
+        assertTrue(tag.getTranslations().isEmpty());
     }
 
     @Test
-    public void testTranslationManagement() {
+    void testPrePersist() {
+        // Arrange
         Tag tag = new Tag();
-        Translation translation1 = new Translation();
-        Translation translation2 = new Translation();
 
-        // Add translations
-        Set<Translation> translations = new HashSet<>();
-        translations.add(translation1);
-        translations.add(translation2);
+        // Act - using try-with-resources to mock the static LocalDateTime.now()
+        try (MockedStatic<LocalDateTime> mockedStatic = Mockito.mockStatic(LocalDateTime.class)) {
+            mockedStatic.when(LocalDateTime::now).thenReturn(FIXED_DATE_TIME);
 
-        tag.setTranslations(translations);
+            tag.onCreate();
 
-        // Verify
-        assertEquals(2, tag.getTranslations().size());
-        assertTrue(tag.getTranslations().contains(translation1));
-        assertTrue(tag.getTranslations().contains(translation2));
+            // Assert
+            assertEquals(FIXED_DATE_TIME, tag.getCreatedAt());
+            assertEquals(FIXED_DATE_TIME, tag.getUpdatedAt());
+        }
+    }
+
+    @Test
+    void testPreUpdate() {
+        // Arrange
+        Tag tag = new Tag();
+        LocalDateTime createdAt = LocalDateTime.of(2022, 1, 1, 12, 0, 0);
+        tag.setCreatedAt(createdAt);
+
+        // Act - using try-with-resources to mock the static LocalDateTime.now()
+        try (MockedStatic<LocalDateTime> mockedStatic = Mockito.mockStatic(LocalDateTime.class)) {
+            mockedStatic.when(LocalDateTime::now).thenReturn(FIXED_DATE_TIME);
+
+            tag.onUpdate();
+
+            // Assert
+            assertEquals(createdAt, tag.getCreatedAt(), "Created date should not change on update");
+            assertEquals(FIXED_DATE_TIME, tag.getUpdatedAt(), "Updated date should change to current time");
+        }
     }
 }

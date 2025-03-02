@@ -1,67 +1,146 @@
 package com.translationservice.model;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 import java.time.LocalDateTime;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class LocaleTest {
-    @Test
-    public void testLocaleConstructors() {
-        // Default constructor
-        Locale defaultLocale = new Locale();
-        assertNotNull(defaultLocale);
 
-        // Parameterized constructor
-        LocalDateTime now = LocalDateTime.now();
-        Locale locale = new Locale(
-                1L,
-                "en",
-                "English",
-                now,
-                now
-        );
-
-        assertEquals(1L, locale.getId());
-        assertEquals("en", locale.getCode());
-        assertEquals("English", locale.getName());
-        assertEquals(now, locale.getCreatedAt());
-        assertEquals(now, locale.getUpdatedAt());
-    }
+    private static final LocalDateTime FIXED_DATE_TIME = LocalDateTime.of(2023, 1, 1, 12, 0, 0);
 
     @Test
-    public void testLocaleBuilder() {
-        LocalDateTime now = LocalDateTime.now();
-
-        Locale locale = Locale.builder()
-                .id(1L)
-                .code("fr")
-                .name("French")
-                .createdAt(now)
-                .updatedAt(now)
-                .build();
-
-        assertEquals(1L, locale.getId());
-        assertEquals("fr", locale.getCode());
-        assertEquals("French", locale.getName());
-        assertEquals(now, locale.getCreatedAt());
-        assertEquals(now, locale.getUpdatedAt());
-    }
-
-    @Test
-    public void testPrePersistAndPreUpdate() {
+    void testEmptyConstructor() {
         Locale locale = new Locale();
 
-        // Simulate pre-persist
-        locale.onCreate();
-        assertNotNull(locale.getCreatedAt());
-        assertNotNull(locale.getUpdatedAt());
+        assertNull(locale.getId());
+        assertNull(locale.getCode());
+        assertNull(locale.getName());
+        assertNull(locale.getCreatedAt());
+        assertNull(locale.getUpdatedAt());
+    }
 
-        // Simulate pre-update
-        LocalDateTime initialCreatedAt = locale.getCreatedAt();
-        locale.onUpdate();
-        assertEquals(initialCreatedAt, locale.getCreatedAt());
-        assertNotNull(locale.getUpdatedAt());
+    @Test
+    void testParameterizedConstructor() {
+        // Arrange
+        Long id = 1L;
+        String code = "en-US";
+        String name = "English (US)";
+        LocalDateTime createdAt = LocalDateTime.now();
+        LocalDateTime updatedAt = LocalDateTime.now();
+
+        // Act
+        Locale locale = new Locale(id, code, name, createdAt, updatedAt);
+
+        // Assert
+        assertEquals(id, locale.getId());
+        assertEquals(code, locale.getCode());
+        assertEquals(name, locale.getName());
+        assertEquals(createdAt, locale.getCreatedAt());
+        assertEquals(updatedAt, locale.getUpdatedAt());
+    }
+
+    @Test
+    void testGettersAndSetters() {
+        // Arrange
+        Locale locale = new Locale();
+        Long id = 1L;
+        String code = "en-US";
+        String name = "English (US)";
+        LocalDateTime createdAt = LocalDateTime.now();
+        LocalDateTime updatedAt = LocalDateTime.now();
+
+        // Act
+        locale.setId(id);
+        locale.setCode(code);
+        locale.setName(name);
+        locale.setCreatedAt(createdAt);
+        locale.setUpdatedAt(updatedAt);
+
+        // Assert
+        assertEquals(id, locale.getId());
+        assertEquals(code, locale.getCode());
+        assertEquals(name, locale.getName());
+        assertEquals(createdAt, locale.getCreatedAt());
+        assertEquals(updatedAt, locale.getUpdatedAt());
+    }
+
+    @Test
+    void testBuilder() {
+        // Arrange
+        Long id = 1L;
+        String code = "en-US";
+        String name = "English (US)";
+        LocalDateTime createdAt = LocalDateTime.now();
+        LocalDateTime updatedAt = LocalDateTime.now();
+
+        // Act
+        Locale locale = Locale.builder()
+                .id(id)
+                .code(code)
+                .name(name)
+                .createdAt(createdAt)
+                .updatedAt(updatedAt)
+                .build();
+
+        // Assert
+        assertEquals(id, locale.getId());
+        assertEquals(code, locale.getCode());
+        assertEquals(name, locale.getName());
+        assertEquals(createdAt, locale.getCreatedAt());
+        assertEquals(updatedAt, locale.getUpdatedAt());
+    }
+
+    @Test
+    void testBuilderNoValues() {
+        // Act
+        Locale locale = Locale.builder().build();
+
+        // Assert
+        assertNull(locale.getId());
+        assertNull(locale.getCode());
+        assertNull(locale.getName());
+        assertNull(locale.getCreatedAt());
+        assertNull(locale.getUpdatedAt());
+    }
+
+    @Test
+    void testPrePersist() {
+        // Arrange
+        Locale locale = new Locale();
+
+        // Act - using try-with-resources to mock the static LocalDateTime.now()
+        try (MockedStatic<LocalDateTime> mockedStatic = Mockito.mockStatic(LocalDateTime.class)) {
+            mockedStatic.when(LocalDateTime::now).thenReturn(FIXED_DATE_TIME);
+
+            locale.onCreate();
+
+            // Assert
+            assertEquals(FIXED_DATE_TIME, locale.getCreatedAt());
+            assertEquals(FIXED_DATE_TIME, locale.getUpdatedAt());
+        }
+    }
+
+    @Test
+    void testPreUpdate() {
+        // Arrange
+        Locale locale = new Locale();
+        LocalDateTime createdAt = LocalDateTime.of(2022, 1, 1, 12, 0, 0);
+        locale.setCreatedAt(createdAt);
+
+        // Act - using try-with-resources to mock the static LocalDateTime.now()
+        try (MockedStatic<LocalDateTime> mockedStatic = Mockito.mockStatic(LocalDateTime.class)) {
+            mockedStatic.when(LocalDateTime::now).thenReturn(FIXED_DATE_TIME);
+
+            locale.onUpdate();
+
+            // Assert
+            assertEquals(createdAt, locale.getCreatedAt(), "Created date should not change on update");
+            assertEquals(FIXED_DATE_TIME, locale.getUpdatedAt(), "Updated date should change to current time");
+        }
     }
 }
